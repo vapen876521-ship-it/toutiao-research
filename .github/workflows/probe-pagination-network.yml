@@ -1,0 +1,31 @@
+name: Probe Toutiao pagination network
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_pagination_network.py'
+      - '.github/workflows/probe-pagination-network.yml'
+      - 'requirements.txt'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install chromium
+      - name: Probe pagination traffic
+        run: python probe_pagination_network.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-pagination-network
+          path: output_pagination_network/
+          retention-days: 7
