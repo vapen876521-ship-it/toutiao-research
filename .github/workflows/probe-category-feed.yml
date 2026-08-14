@@ -1,0 +1,28 @@
+name: Probe Toutiao public category feeds
+
+on:
+  push:
+    paths:
+      - 'probe_category_feed.py'
+      - '.github/workflows/probe-category-feed.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python probe_category_feed.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: category-feed-probe
+          path: output_category_feed/
+          retention-days: 7
