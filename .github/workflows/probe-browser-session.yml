@@ -1,0 +1,32 @@
+name: Probe Toutiao browser session details
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_browser_session.py'
+      - '.github/workflows/probe-browser-session.yml'
+      - 'requirements.txt'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Probe browser session
+        run: python probe_browser_session.py
+      - name: Upload session probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-browser-session-probe
+          path: output_session/
+          retention-days: 7
