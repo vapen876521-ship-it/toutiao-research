@@ -34,7 +34,8 @@ for label, url in URLS:
         text = r.text
         title = ""
         try:
-            title = BeautifulSoup(text, "lxml").title.get_text(strip=True) if BeautifulSoup(text, "lxml").title else ""
+            soup = BeautifulSoup(text, "lxml")
+            title = soup.title.get_text(strip=True) if soup.title else ""
         except Exception:
             pass
         for pattern in [r'https?://www\.toutiao\.com/article/\d+/?', r'//www\.toutiao\.com/article/\d+/?']:
