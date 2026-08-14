@@ -1,0 +1,34 @@
+name: Validate browser pagination collector
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'collect_browser.py'
+      - 'requirements.txt'
+      - '.github/workflows/collect-validation.yml'
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Collect validation sample
+        run: python collect_browser.py
+      - name: Upload validation sample
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-collector-validation
+          path: output_collect/
+          if-no-files-found: warn
+          retention-days: 7
