@@ -1,0 +1,28 @@
+name: Probe Toutiao detail engagement semantics
+
+on:
+  push:
+    paths:
+      - 'probe_detail_semantics.py'
+      - '.github/workflows/probe-detail-semantics.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python probe_detail_semantics.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detail-semantics-probe
+          path: output_detail_semantics/
+          retention-days: 7
