@@ -1,0 +1,26 @@
+name: Probe Toutiao user search follower data
+
+on:
+  push:
+    paths:
+      - 'probe_user_search.py'
+      - '.github/workflows/probe-user-search.yml'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python probe_user_search.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-user-search-probe
+          path: output_user_search/
+          retention-days: 7
