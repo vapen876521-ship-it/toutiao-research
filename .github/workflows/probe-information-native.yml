@@ -1,0 +1,28 @@
+name: Probe Toutiao native information posts
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_information_native.py'
+      - '.github/workflows/probe-information-native.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python probe_information_native.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: information-native-probe
+          path: |
+            information_native_probe.csv
+            information_native_report.json
+          retention-days: 7
