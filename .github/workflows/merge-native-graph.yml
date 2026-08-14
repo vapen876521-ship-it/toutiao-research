@@ -1,0 +1,34 @@
+name: Merge semantic native graph
+
+on:
+  workflow_run:
+    workflows: ['Harvest semantic native graph']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  merge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download shard artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: native-graph-*
+          path: downloaded
+          merge-multiple: false
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - run: python merge_native_graph.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-graph-merged
+          path: native_graph_merged/
+          retention-days: 7
