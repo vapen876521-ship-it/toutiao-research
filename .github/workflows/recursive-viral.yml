@@ -1,0 +1,86 @@
+name: Recursive Toutiao viral snowball
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'recursive_viral.py'
+      - '.github/workflows/recursive-viral.yml'
+
+jobs:
+  harvest:
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: '20'
+      QUERY_LIMIT: '700'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Recursive viral harvest
+        run: python recursive_viral.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recursive-shard-${{ matrix.shard }}
+          path: recursive_output/
+          retention-days: 7
+
+  merge:
+    needs: harvest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: recursive-shard-*
+          path: recursive_downloads
+      - name: Merge recursive viral rows
+        run: |
+          python - <<'PY'
+          import csv, glob, json
+          from pathlib import Path
+          files=glob.glob('recursive_downloads/**/recursive_*.csv',recursive=True)
+          rows=[]
+          for f in files:
+              with open(f,encoding='utf-8-sig') as h: rows += list(csv.DictReader(h))
+          def n(x):
+              try:return int(float(x or 0))
+              except:return 0
+          best={}
+          for r in rows:
+              gid=r['group_id']; rank=(n(r.get('max_interaction')),len(r.get('title') or '')+len(r.get('abstract') or ''))
+              if gid not in best or rank>best[gid][0]:best[gid]=(rank,r)
+          out=[x[1] for x in best.values()]
+          out.sort(key=lambda r:n(r.get('max_interaction')),reverse=True)
+          Path('recursive_merged').mkdir(exist_ok=True)
+          if out:
+              with open('recursive_merged/recent_viral_recursive.csv','w',newline='',encoding='utf-8-sig') as h:
+                  w=csv.DictWriter(h,fieldnames=list(out[0]));w.writeheader();w.writerows(out)
+          summary={
+            'raw_rows':len(rows),'unique_recent_viral':len(out),
+            'ge_30k':sum(n(r.get('max_interaction'))>=30000 for r in out),
+            'ge_50k':sum(n(r.get('max_interaction'))>=50000 for r in out),
+            'ge_100k':sum(n(r.get('max_interaction'))>=100000 for r in out),
+            'digg_ge_10k':sum(n(r.get('digg_count'))>=10000 for r in out),
+            'comment_ge_10k':sum(n(r.get('comment_count'))>=10000 for r in out),
+            'forward_ge_10k':sum(n(r.get('forward_count'))>=10000 for r in out),
+            'repin_ge_10k':sum(n(r.get('repin_count'))>=10000 for r in out)
+          }
+          Path('recursive_merged/summary.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recursive-viral-merged
+          path: recursive_merged/
+          retention-days: 7
