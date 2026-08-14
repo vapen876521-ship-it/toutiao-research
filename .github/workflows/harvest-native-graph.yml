@@ -1,0 +1,36 @@
+name: Harvest semantic native graph
+
+on:
+  push:
+    paths:
+      - 'harvest_native_graph.py'
+      - '.github/workflows/harvest-native-graph.yml'
+  workflow_dispatch:
+
+jobs:
+  harvest:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: 12
+      MAX_PAGES: 140
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python harvest_native_graph.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-graph-${{ matrix.shard }}
+          path: native_graph_output/
+          retention-days: 7
