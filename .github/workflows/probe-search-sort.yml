@@ -1,0 +1,26 @@
+name: Probe Toutiao search sorting
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_search_sort.py'
+      - '.github/workflows/probe-search-sort.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python probe_search_sort.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: search-sort-probe
+          path: search_sort_probe.json
+          retention-days: 7
