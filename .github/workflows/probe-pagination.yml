@@ -1,0 +1,33 @@
+name: Probe Toutiao public pagination
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_pagination.py'
+      - '.github/workflows/probe-pagination.yml'
+      - 'requirements.txt'
+
+jobs:
+  paginate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Probe public pagination
+        run: python probe_pagination.py
+      - name: Upload pagination output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-pagination-probe
+          path: output_pagination/
+          if-no-files-found: warn
+          retention-days: 7
