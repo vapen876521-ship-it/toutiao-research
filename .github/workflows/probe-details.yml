@@ -1,0 +1,32 @@
+name: Probe Toutiao public post details
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_details.py'
+      - 'requirements.txt'
+      - '.github/workflows/probe-details.yml'
+
+jobs:
+  probe-details:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Probe public details
+        run: python probe_details.py
+      - name: Upload detail probe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-detail-probe
+          path: output_details/
+          retention-days: 7
