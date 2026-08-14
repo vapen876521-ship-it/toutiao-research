@@ -1,0 +1,28 @@
+name: Probe native Weitoutiao posts
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_weitoutiao.py'
+      - '.github/workflows/probe-weitoutiao.yml'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python probe_weitoutiao.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weitoutiao-probe
+          path: |
+            weitoutiao_probe.csv
+            weitoutiao_report.json
+          retention-days: 7
