@@ -1,0 +1,34 @@
+name: Probe Toutiao browser search
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_browser.py'
+      - 'requirements.txt'
+      - '.github/workflows/probe-browser.yml'
+
+jobs:
+  browser-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Probe search pages in browser
+        run: python probe_browser.py
+      - name: Upload browser probe output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-browser-probe
+          path: output_browser/
+          if-no-files-found: warn
+          retention-days: 7
