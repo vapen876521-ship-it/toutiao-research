@@ -1,0 +1,123 @@
+name: Browser enrich recent viral seeds
+
+on:
+  push:
+    paths:
+      - 'browser_enrich_viral.py'
+      - '.github/workflows/browser-enrich-viral.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  enrich:
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: 20
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: |
+          pip install pandas playwright
+          python -m playwright install --with-deps chromium
+      - name: Download prior candidate artifacts
+        run: |
+          mkdir -p seed_inputs/run1 seed_inputs/run2 seed_inputs/targeted seed_inputs/recent
+          gh run download 31763655400 -n toutiao-candidates-merged -D seed_inputs/run1
+          gh run download 31763772222 -n toutiao-candidates-merged -D seed_inputs/run2
+          gh run download 31765983193 -n toutiao-targeted-merged -D seed_inputs/targeted
+          gh run download 31771592958 -n recent-viral-merged -D seed_inputs/recent
+          find seed_inputs -type f -maxdepth 4 -print
+      - name: Enrich seed authors and profile posts
+        run: python browser_enrich_viral.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-enrich-${{ matrix.shard }}
+          path: browser_enrich_output/
+          retention-days: 7
+
+  merge:
+    needs: enrich
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: browser-enrich-*
+          path: all_enrich
+          merge-multiple: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pandas
+      - name: Merge and summarize
+        run: |
+          python - <<'PY'
+          import glob,json,os
+          import pandas as pd
+          os.makedirs('browser_enrich_merged',exist_ok=True)
+          def merge(pattern,out,key):
+              fs=glob.glob(pattern)
+              frames=[]
+              for f in fs:
+                  try: frames.append(pd.read_csv(f,dtype=str))
+                  except Exception: pass
+              if not frames:
+                  pd.DataFrame(columns=[key]).to_csv(out,index=False,encoding='utf-8-sig'); return pd.DataFrame(columns=[key])
+              d=pd.concat(frames,ignore_index=True,sort=False)
+              if key in d.columns:
+                  for c in ['digg_count','comment_count','forward_count','repin_count','followers_count','core_max','browser_total_comments']:
+                      if c in d.columns: d[c+'_n']=pd.to_numeric(d[c],errors='coerce').fillna(0)
+                  rankcols=[c+'_n' for c in ['core_max','digg_count','comment_count','followers_count'] if c+'_n' in d.columns]
+                  if rankcols:
+                      d['_rank']=d[rankcols].max(axis=1)
+                      d=d.sort_values('_rank',ascending=False).drop_duplicates(key).drop(columns=['_rank'])
+                  else:d=d.drop_duplicates(key)
+              d.to_csv(out,index=False,encoding='utf-8-sig')
+              return d
+          seeds=merge('all_enrich/seed_enriched_*.csv','browser_enrich_merged/seed_enriched.csv','group_id')
+          posts=merge('all_enrich/profile_posts_*.csv','browser_enrich_merged/profile_posts.csv','group_id')
+          def ncol(d,c): return pd.to_numeric(d[c],errors='coerce').fillna(0) if c in d.columns else pd.Series([0]*len(d),index=d.index)
+          if len(posts):
+              core=pd.concat([ncol(posts,c) for c in ['digg_count','comment_count','forward_count','repin_count']],axis=1).max(axis=1)
+              pub=ncol(posts,'publish_time')
+              recent=(pub>=1784044800)&(pub<1786809600)
+              native=~posts.get('has_video',pd.Series(['']*len(posts))).astype(str).str.lower().isin(['true','1'])
+          else:
+              core=pd.Series(dtype=float);recent=pd.Series(dtype=bool);native=pd.Series(dtype=bool)
+          summary={
+            'seed_unique':int(len(seeds)),
+            'seed_author_resolved':int((seeds.get('author_user_id',pd.Series([],dtype=str)).fillna('').astype(str)!='').sum()) if len(seeds) else 0,
+            'seed_followers_resolved':int((ncol(seeds,'followers_count')>0).sum()) if len(seeds) else 0,
+            'seed_video_true':int(seeds.get('is_video',pd.Series([],dtype=str)).astype(str).str.lower().eq('true').sum()) if len(seeds) else 0,
+            'seed_video_false':int(seeds.get('is_video',pd.Series([],dtype=str)).astype(str).str.lower().eq('false').sum()) if len(seeds) else 0,
+            'profile_posts_unique':int(len(posts)),
+            'profile_posts_recent':int(recent.sum()) if len(posts) else 0,
+            'profile_posts_recent_nonvideo':int((recent&native).sum()) if len(posts) else 0,
+            'profile_posts_recent_viral10k':int((recent&(core>=10000)).sum()) if len(posts) else 0,
+            'profile_posts_recent_nonvideo_viral10k':int((recent&native&(core>=10000)).sum()) if len(posts) else 0,
+            'profile_posts_recent_nonvideo_3k':int((recent&native&(core>=3000)).sum()) if len(posts) else 0,
+          }
+          open('browser_enrich_merged/summary.json','w',encoding='utf8').write(json.dumps(summary,ensure_ascii=False,indent=2))
+          print(json.dumps(summary,ensure_ascii=False,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-enrich-merged
+          path: browser_enrich_merged/
+          retention-days: 7
