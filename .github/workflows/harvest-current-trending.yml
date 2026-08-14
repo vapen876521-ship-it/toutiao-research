@@ -1,0 +1,28 @@
+name: Harvest current Toutiao trending native posts
+
+on:
+  push:
+    paths:
+      - 'harvest_current_trending.py'
+      - '.github/workflows/harvest-current-trending.yml'
+  workflow_dispatch:
+
+jobs:
+  harvest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python harvest_current_trending.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: current-trending-native-posts
+          path: current_trending_output/
+          retention-days: 7
