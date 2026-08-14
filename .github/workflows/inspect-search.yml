@@ -1,0 +1,33 @@
+name: Inspect Toutiao search structure
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'inspect_search.py'
+      - 'requirements.txt'
+      - '.github/workflows/inspect-search.yml'
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Inspect search page structure
+        run: python inspect_search.py
+      - name: Upload inspection output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-search-inspection
+          path: output_search/
+          if-no-files-found: warn
+          retention-days: 7
