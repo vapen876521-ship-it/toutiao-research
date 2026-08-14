@@ -1,0 +1,63 @@
+name: Harvest recent public Toutiao candidates
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'harvest_first_pages.py'
+      - 'merge_harvest.py'
+      - 'requirements.txt'
+      - '.github/workflows/harvest.yml'
+
+jobs:
+  harvest:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: '10'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Harvest shard
+        run: python harvest_first_pages.py
+      - name: Upload shard
+        uses: actions/upload-artifact@v4
+        with:
+          name: harvest-shard-${{ matrix.shard }}
+          path: harvest_output/
+          retention-days: 7
+
+  merge:
+    needs: harvest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: harvest-shard-*
+          path: harvest_downloads
+      - name: Merge and deduplicate
+        run: python merge_harvest.py
+      - name: Upload merged candidate dataset
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-candidates-merged
+          path: harvest_merged/
+          retention-days: 7
