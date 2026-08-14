@@ -6,6 +6,7 @@ on:
     paths:
       - 'harvest_first_pages.py'
       - 'merge_harvest.py'
+      - 'analyze_candidates.py'
       - 'requirements.txt'
       - '.github/workflows/harvest.yml'
 
@@ -55,9 +56,13 @@ jobs:
           path: harvest_downloads
       - name: Merge and deduplicate
         run: python merge_harvest.py
-      - name: Upload merged candidate dataset
+      - name: Rank and analyze candidates
+        run: python analyze_candidates.py
+      - name: Upload merged candidate dataset and analysis
         uses: actions/upload-artifact@v4
         with:
           name: toutiao-candidates-merged
-          path: harvest_merged/
+          path: |
+            harvest_merged/
+            harvest_analysis/
           retention-days: 7
