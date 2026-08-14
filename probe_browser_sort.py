@@ -19,7 +19,8 @@ async def main():
                 rr={'url':resp.url,'status':resp.status,'type':resp.request.resource_type,'ct':resp.headers.get('content-type','')}
                 try:
                     txt=await resp.text()
-                except:txt=''
+                except Exception:
+                    txt=''
                 rr['len']=len(txt)
                 if any(k in txt for k in ['group_id','comment_count','digg_count','weitoutiao']):
                     rr['counts']={k:txt.count(k) for k in ['group_id','comment_count','digg_count','forward_count','repin_count','weitoutiao']}
@@ -32,7 +33,7 @@ async def main():
                 await page.wait_for_timeout(8000)
                 rec['status']=r.status if r else None;rec['url']=page.url;rec['title']=await page.title()
                 body=await page.locator('body').inner_text();rec['body_chars']=len(body);rec['body_prefix']=re.sub(r'\s+',' ',body[:6000])
-                rec['texts']=[x for x in re.findall(r'.{0,30}(?:综合|资讯|微头条|排序|最新|热度|时间).{0,60}',body)][:50]]
+                rec['texts']=re.findall(r'.{0,30}(?:综合|资讯|微头条|排序|最新|热度|时间).{0,60}',body)[:50]
                 rec['links']=await page.locator('a').evaluate_all("els=>els.slice(0,400).map(a=>({t:(a.innerText||'').trim(),h:a.href})).filter(x=>x.h)")
                 html=await page.content();rec['html_counts']={k:html.count(k) for k in ['group_id','comment_count','digg_count','forward_count','repin_count','sslocal://thread_detail','awemevideo']}
             except Exception as e:rec['error']=repr(e)
