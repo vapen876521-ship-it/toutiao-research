@@ -1,0 +1,34 @@
+name: Harvest historical hot-topic native posts
+
+on:
+  push:
+    paths:
+      - 'harvest_historical_hot_topics.py'
+      - '.github/workflows/harvest-historical-hot.yml'
+  workflow_dispatch:
+
+jobs:
+  harvest:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python harvest_historical_hot_topics.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: historical-hot-${{ matrix.shard }}
+          path: historical_hot_output/
+          retention-days: 7
