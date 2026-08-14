@@ -1,0 +1,33 @@
+name: Probe Toutiao public follower stats
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'probe_fans.py'
+      - 'requirements.txt'
+      - '.github/workflows/probe-fans.yml'
+
+jobs:
+  probe-fans:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Probe public follower stats
+        run: python probe_fans.py
+      - name: Upload follower probe output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: toutiao-fans-probe
+          path: output_fans/
+          if-no-files-found: warn
+          retention-days: 7
