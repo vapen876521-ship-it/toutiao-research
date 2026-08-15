@@ -52,7 +52,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m playwright install --with-deps chromium
       - run: |
-          CATEGORY_NAME='${{ matrix.category }}' CATEGORY_URL='${{ matrix.url }}' SCROLLS=90 SESSIONS=3 python harvest_category_deep.py
+          CATEGORY_NAME='${{ matrix.category }}' CATEGORY_URL='${{ matrix.url }}' SCROLLS=120 SESSIONS=4 python harvest_category_deep.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
