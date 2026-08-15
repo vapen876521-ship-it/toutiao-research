@@ -1,0 +1,36 @@
+name: Merge deep category harvest
+on:
+  workflow_run:
+    workflows: ["Deep category harvester"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  merge:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download category artifacts from triggering run
+        if: ${{ github.event_name == 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: category-deep-*
+          path: deep_artifacts
+          merge-multiple: true
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge and validate
+        run: python merge_category_deep.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: category-deep-merged
+          path: category_deep_merged/
+          retention-days: 14
