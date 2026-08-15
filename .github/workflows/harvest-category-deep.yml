@@ -1,0 +1,33 @@
+name: Deep category harvester
+on:
+  workflow_dispatch:
+    inputs:
+      category:
+        default: hot
+      url:
+        default: https://www.toutiao.com/?channel=hot&source=ch
+      sessions:
+        default: '2'
+      scrolls:
+        default: '55'
+jobs:
+  harvest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        category: [hot, finance, ent, sports, tech, food, travel, game, edu, house, culture]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: |
+          CATEGORY_NAME=${{ matrix.category }} SCROLLS=55 SESSIONS=2 python harvest_category_deep.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: category-deep-${{ matrix.category }}
+          path: category_deep_output/
+          retention-days: 7
