@@ -4,9 +4,13 @@ from datetime import datetime,timezone
 
 ROOT=Path('deep_artifacts')
 OUT=Path('category_deep_merged');OUT.mkdir(exist_ok=True)
-DIRECT_BLOCK=['习近平','总书记','党中央','国务院','外交部','国防部','解放军','军演','导弹','战机','航母','俄乌','乌克兰','以色列','加沙','特朗普','普京','泽连斯基','拜登','选举','总统','总理','首相','两会','人大','政协','省委','市委书记','军方','军事','武器','台海','台湾当局','南海争端','国际局势','外交','国防','北约','美军','侵略','制裁','中美','美日','反华','领土争端','停火','政客','政治局','中央军委','国民党','共产党','红军','八路军','新四军','抗日战争','解放战争','抗美援朝','开国元帅','开国将领','军籍','朱镕基','江泽民','毛泽东','毛主席','周恩来','邓小平','刘少奇','叶剑英','彭德怀','刘伯承','陈毅','贺龙','林彪','蒋介石','宋庆龄','孙中山']
-GEO_ENTITIES=['美国','日本','印度','韩国','朝鲜','英国','法国','德国','欧盟','俄罗斯','乌克兰','以色列','伊朗','菲律宾','台湾','中方','美方','日方','印方','俄方']
-GEO_TERMS=['总统','总理','首相','政府','政客','外交','制裁','战争','战败','领土','军队','军方','军事','导弹','航母','战机','武器','边境','大国','美军','北约','联合国','选举','谈判','停火','冲突','驻军','条约','反华','战事']
+LEADERS=['习近平','毛泽东','毛主席','周恩来','朱德','邓小平','江泽民','胡锦涛','朱镕基','温家宝','李克强','刘少奇','刘伯承','彭德怀','陈毅','贺龙','林彪','叶剑英','粟裕','蒋介石','孙中山','宋庆龄','特朗普','拜登','普京','泽连斯基','高市早苗','高市','马科斯','莫迪','杜特尔特']
+PARTY_STATE=['党中央','政治局','中央军委','国务院','外交部','国防部','全国人大','全国政协','省委书记','市委书记','党委书记','纪委书记','纪检监察','严重违纪违法','审查调查']
+MILITARY=['解放军','美军','印军','军方','导弹','航母','战机','军工','核武','防务协议','驻军','抗美援朝','解放战争','抗日战争','日本侵华','731部队','黄岩岛','仁爱礁','台海','南海争端','军籍']
+GEOPOL_DIRECT=['中方','美方','日方','印方','俄方','对华','反制','制裁','贸易战','中美','中日','亲美','反华','靖国神社','台湾没“独立”','台湾没“独立”过']
+COUNTRIES=['美国','日本','印度','俄罗斯','乌克兰','以色列','伊朗','菲律宾','台湾','朝鲜','韩国','欧盟','法国','英国','德国','加拿大','新西兰']
+GEO_CUES=['总统','总理','首相','政府','选举','外交','制裁','关税','军方','军事','导弹','航母','战机','防务','战争','冲突','停火','领土','军队','条约','投降','稀土','美债','反制','对决','靖国','无核','驻军','反华','战败','侵略','军事基地','开第一枪']
+HISTORY_MIL=['抗日','侵华','战争','战役','投降','部队','军队','军方','军人','将军','元帅','军籍']
 START_TS=int(datetime(2026,7,14,16,0,tzinfo=timezone.utc).timestamp())
 END_TS=int(datetime(2026,8,14,16,0,tzinfo=timezone.utc).timestamp())
 
@@ -16,16 +20,17 @@ def n(v):
 
 def b(v):return str(v).strip().lower() in ('1','true','yes')
 
-def political(title):
-    t=str(title or '')
-    if any(x in t for x in DIRECT_BLOCK):return True
-    return any(e in t for e in GEO_ENTITIES) and any(k in t for k in GEO_TERMS)
+def political(r):
+    t=(str(r.get('title') or '')+' '+str(r.get('abstract') or '')).strip()
+    if any(x in t for x in LEADERS+PARTY_STATE+MILITARY+GEOPOL_DIRECT):return True
+    if any(e in t for e in COUNTRIES) and any(k in t for k in GEO_CUES):return True
+    if str(r.get('category') or '')=='history' and any(x in t for x in HISTORY_MIL):return True
+    return False
 
 def valid(r):
     gid=str(r.get('group_id') or '')
     url=str(r.get('post_url') or '')
     typ=str(r.get('post_type') or '')
-    title=str(r.get('title') or '')
     pub=n(r.get('publish_time'))
     prov=str(r.get('provenance') or '')
     src=str(r.get('source_url_raw') or '')
@@ -33,7 +38,7 @@ def valid(r):
     if typ not in ('article','weitoutiao'):return False
     if not re.match(r'^https://www\.toutiao\.com/(article|w)/\d+/?$',url):return False
     if not (START_TS<=pub<END_TS):return False
-    if political(title):return False
+    if political(r):return False
     if str(r.get('content_schema_type') or '')=='3':return False
     if prov in ('feed_group_19digit','feed_item_19digit'):
         if not re.search(r'https?://(?:www\.)?toutiao\.com/(?:group|item)/'+re.escape(gid)+r'/?',src):return False
