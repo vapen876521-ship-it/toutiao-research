@@ -66,11 +66,27 @@ def image_count(d):
         if isinstance(d.get(k),list):vals.append(len(d[k]))
     return max(vals or [0])
 
+def source_url(d):
+    for k in ['article_url','display_url','share_url','seo_url','url','source_url','detail_url']:
+        u=str(d.get(k) or '')
+        if u:return u
+    return ''
+
 def native_url(d,gid):
+    # Direct canonical native URL is the strongest proof.
     for k in ['article_url','display_url','share_url','seo_url','url','source_url','detail_url']:
         u=str(d.get(k) or '')
         m=re.search(r'https?://(?:www\.|m\.)?toutiao\.com/(article|w)/(\d+)',u)
-        if m:return f'https://www.toutiao.com/{m.group(1)}/{m.group(2)}/',('article' if m.group(1)=='article' else 'weitoutiao'),'url'
+        if m:
+            return f'https://www.toutiao.com/{m.group(1)}/{m.group(2)}/',('article' if m.group(1)=='article' else 'weitoutiao'),'direct_'+m.group(1)
+    # Current Toutiao category feeds often expose an older /group/<19-digit-id>/ or /item/<id>/ URL.
+    # Browser probe on 2026-08-15 verified 7/8 sampled group URLs resolve to /article/<same-id>/;
+    # retain the provenance so these can be detail-verified later instead of pretending the feed URL was canonical.
+    for k in ['article_url','display_url','share_url','seo_url','url','source_url','detail_url']:
+        u=str(d.get(k) or '')
+        m=re.search(r'https?://(?:www\.)?toutiao\.com/(group|item)/(\d{18,20})',u)
+        if m and m.group(2)==str(gid) and gid_ts(gid):
+            return f'https://www.toutiao.com/article/{gid}/','article','feed_'+m.group(1)+'_19digit'
     ds=str(scalar(d,'detail_schema','schema','open_url') or '')
     if 'sslocal://thread_detail' in ds:return f'https://www.toutiao.com/w/{gid}/','weitoutiao','thread_schema'
     typ=str(scalar(d,'content_schema_type','content_type') or '')
@@ -106,7 +122,7 @@ def candidate(d,response_url,json_path,session):
     media=scalar(d,'media_name','source','source_name') or ''
     if not media and isinstance(d.get('media_info'),dict):media=d['media_info'].get('name') or d['media_info'].get('user_name') or ''
     uid=scalar(d,'user_id','media_creator_id','author_id') or ''
-    return {'category':NAME,'session':session,'group_id':gid,'post_url':url,'post_type':post_type,'provenance':provenance,
+    return {'category':NAME,'session':session,'group_id':gid,'post_url':url,'post_type':post_type,'provenance':provenance,'source_url_raw':source_url(d),
       'title':re.sub(r'\s+',' ',str(title)).strip()[:700],'abstract':re.sub(r'\s+',' ',str(d.get('abstract') or '')).strip()[:1800],
       'media_name':str(media),'user_id':str(uid),'followers_count':follower_count(d,str(uid)),'institution_hint':any(x in str(media) for x in INSTITUTION),
       'publish_time':pub,'publish_time_source':source,'read_count':read,'digg_count':digg,'comment_count':comment,'forward_count':forward,'repin_count':repin,
@@ -158,10 +174,10 @@ async def main():
         score=(x['max_interaction'],x['interaction_sum'],sum(bool(x.get(k)) for k in ['media_name','user_id','followers_count','abstract','image_count']))
         if x['group_id'] not in best or score>best[x['group_id']][0]:best[x['group_id']]=(score,x)
     rows=[v[1] for v in best.values()]
-    fields=['category','session','group_id','post_url','post_type','provenance','title','abstract','media_name','user_id','followers_count','institution_hint','publish_time','publish_time_source','read_count','digg_count','comment_count','forward_count','repin_count','max_interaction','interaction_sum','image_count','content_schema_type','response_url','json_path']
+    fields=['category','session','group_id','post_url','post_type','provenance','source_url_raw','title','abstract','media_name','user_id','followers_count','institution_hint','publish_time','publish_time_source','read_count','digg_count','comment_count','forward_count','repin_count','max_interaction','interaction_sum','image_count','content_schema_type','response_url','json_path']
     with (OUT/f'strict_category_{NAME}.csv').open('w',newline='',encoding='utf-8-sig') as f:
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
-    summary={'category':NAME,'sessions':SESSIONS,'scrolls_per_session':SCROLLS,'unique_strict_recent':len(rows),'article':sum(x['post_type']=='article' for x in rows),'weitoutiao':sum(x['post_type']=='weitoutiao' for x in rows),'viral10k':sum(x['max_interaction']>=10000 for x in rows),'viral3k':sum(x['max_interaction']>=3000 for x in rows),'viral1k':sum(x['max_interaction']>=1000 for x in rows),'followers_resolved':sum(x['followers_count']>0 for x in rows),'max':{k:max([x[k] for x in rows] or [0]) for k in ['read_count','digg_count','comment_count','forward_count','repin_count','max_interaction']},'reports':reports}
+    summary={'category':NAME,'sessions':SESSIONS,'scrolls_per_session':SCROLLS,'unique_strict_recent':len(rows),'article':sum(x['post_type']=='article' for x in rows),'weitoutiao':sum(x['post_type']=='weitoutiao' for x in rows),'group_mapped':sum(x['provenance'] in ('feed_group_19digit','feed_item_19digit') for x in rows),'viral10k':sum(x['max_interaction']>=10000 for x in rows),'viral3k':sum(x['max_interaction']>=3000 for x in rows),'viral1k':sum(x['max_interaction']>=1000 for x in rows),'followers_resolved':sum(x['followers_count']>0 for x in rows),'max':{k:max([x[k] for x in rows] or [0]) for k in ['read_count','digg_count','comment_count','forward_count','repin_count','max_interaction']},'reports':reports}
     (OUT/f'summary_{NAME}.json').write_text(json.dumps(summary,ensure_ascii=False,indent=2),encoding='utf-8')
     print(json.dumps(summary,ensure_ascii=False),flush=True)
 
