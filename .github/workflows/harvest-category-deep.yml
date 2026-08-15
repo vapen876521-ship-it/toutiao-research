@@ -15,29 +15,35 @@ jobs:
       matrix:
         include:
           - category: hot
-            url: https://www.toutiao.com/?channel=hot&source=ch
+            url: https://www.toutiao.com/ch/news_hot/
           - category: finance
-            url: https://www.toutiao.com/?channel=finance&source=ch
+            url: https://www.toutiao.com/ch/news_finance/
           - category: ent
-            url: https://www.toutiao.com/?channel=entertainment&source=ch
+            url: https://www.toutiao.com/ch/news_entertainment/
           - category: sports
-            url: https://www.toutiao.com/?channel=sports&source=ch
+            url: https://www.toutiao.com/ch/news_sports/
           - category: tech
-            url: https://www.toutiao.com/?channel=tech&source=ch
+            url: https://www.toutiao.com/ch/news_tech/
           - category: food
-            url: https://www.toutiao.com/?channel=food&source=ch
+            url: https://www.toutiao.com/ch/news_food/
           - category: travel
-            url: https://www.toutiao.com/?channel=travel&source=ch
+            url: https://www.toutiao.com/ch/news_travel/
           - category: game
-            url: https://www.toutiao.com/?channel=game&source=ch
+            url: https://www.toutiao.com/ch/news_game/
+          - category: edu
+            url: https://www.toutiao.com/ch/news_edu/
+          - category: house
+            url: https://www.toutiao.com/ch/news_house/
+          - category: culture
+            url: https://www.toutiao.com/ch/news_culture/
           - category: health
-            url: https://www.toutiao.com/?channel=health&source=ch
+            url: https://www.toutiao.com/ch/news_health/
           - category: history
-            url: https://www.toutiao.com/?channel=history&source=ch
+            url: https://www.toutiao.com/ch/news_history/
           - category: fashion
-            url: https://www.toutiao.com/?channel=fashion&source=ch
+            url: https://www.toutiao.com/ch/news_fashion/
           - category: baby
-            url: https://www.toutiao.com/?channel=baby&source=ch
+            url: https://www.toutiao.com/ch/news_baby/
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,7 +52,7 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m playwright install --with-deps chromium
       - run: |
-          CATEGORY_NAME='${{ matrix.category }}' CATEGORY_URL='${{ matrix.url }}' SCROLLS=55 SESSIONS=2 python harvest_category_deep.py
+          CATEGORY_NAME='${{ matrix.category }}' CATEGORY_URL='${{ matrix.url }}' SCROLLS=70 SESSIONS=2 python harvest_category_deep.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
