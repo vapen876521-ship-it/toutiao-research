@@ -24,12 +24,12 @@ jobs:
           python-version: '3.11'
       - run: pip install -r requirements.txt
       - run: python -m playwright install --with-deps chromium
-      - name: Download strict 2002 corpus
+      - name: Download final strict 2113 corpus
         uses: actions/download-artifact@v4
         with:
           name: category-deep-merged
           path: detail_input
-          run-id: 31870371280
+          run-id: 31893350751
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Enrich shard
         run: SHARD_INDEX='${{ matrix.shard }}' SHARD_COUNT=12 DETAIL_WAIT_MS=1800 DETAIL_DELAY_MS=700 python detail_enrich_all.py
