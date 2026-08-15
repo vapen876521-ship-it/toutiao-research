@@ -3,11 +3,15 @@ on:
   workflow_run:
     workflows: ["Deep category harvester"]
     types: [completed]
+  push:
+    paths:
+      - 'merge_category_deep.py'
+      - '.github/workflows/merge-category-deep.yml'
   workflow_dispatch:
 
 jobs:
   merge:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -26,6 +30,15 @@ jobs:
           path: deep_artifacts
           merge-multiple: true
           run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download current validated category harvest
+        if: ${{ github.event_name != 'workflow_run' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: category-deep-*
+          path: deep_artifacts
+          merge-multiple: true
+          run-id: 31864318970
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Merge and validate
         run: python merge_category_deep.py
