@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - 'merge_category_deep.py'
+      - 'postfilter_final.py'
       - '.github/workflows/merge-category-deep.yml'
   workflow_dispatch:
 
@@ -42,6 +43,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Merge and validate
         run: python merge_category_deep.py
+      - name: Final political and geopolitical audit
+        run: python postfilter_final.py
       - uses: actions/upload-artifact@v4
         with:
           name: category-deep-merged
