@@ -1,0 +1,47 @@
+name: Enrich top author followers
+on:
+  push:
+    paths:
+      - 'profile_enrich_top.py'
+      - '.github/workflows/profile-enrich-top.yml'
+  workflow_dispatch:
+
+jobs:
+  enrich:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      SHARD_INDEX: ${{ matrix.shard }}
+      TOTAL_SHARDS: 4
+      PROFILE_LIMIT: 200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Download final detail shards
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: detail-enrich-all.yml
+          run_id: 31921734906
+          path: detail_inputs
+      - name: Download high engagement retries
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: retry-hot-details.yml
+          run_id: 31922705968
+          name: retry-hot-details
+          path: retry_input
+      - run: python profile_enrich_top.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: profile-top-${{ matrix.shard }}
+          path: profile_top_output/
+          retention-days: 14
