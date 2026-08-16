@@ -38,7 +38,7 @@ jobs:
           pattern: category-deep-*
           path: deep_artifacts
           merge-multiple: true
-          run-id: 31888885622
+          run-id: 31895433165
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Merge and validate
         run: python merge_category_deep.py
